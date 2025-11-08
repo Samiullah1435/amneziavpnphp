@@ -395,8 +395,25 @@ Router::post('/servers/{id}/clients/create', function ($params) {
     requireAuth();
     $serverId = (int)$params['id'];
     $clientName = trim($_POST['name'] ?? '');
-    $expiresInDays = !empty($_POST['expires_in_days']) ? (int)$_POST['expires_in_days'] : null;
-    $trafficLimitGb = !empty($_POST['traffic_limit_gb']) ? (float)$_POST['traffic_limit_gb'] : null;
+    
+    // Handle expiration: either from dropdown (days) or custom input (seconds)
+    $expiresInDays = null;
+    if (!empty($_POST['expires_in_seconds'])) {
+        // Convert seconds to days (round up)
+        $expiresInDays = (int)ceil((int)$_POST['expires_in_seconds'] / 86400);
+    } elseif (!empty($_POST['expires_in_days']) && $_POST['expires_in_days'] !== 'custom') {
+        $expiresInDays = (int)$_POST['expires_in_days'];
+    }
+    
+    // Handle traffic limit: either from dropdown (GB) or custom input (MB)
+    $trafficLimitBytes = null;
+    if (!empty($_POST['traffic_limit_mb'])) {
+        // Convert MB to bytes
+        $trafficLimitBytes = (int)((float)$_POST['traffic_limit_mb'] * 1048576);
+    } elseif (!empty($_POST['traffic_limit_gb']) && $_POST['traffic_limit_gb'] !== 'custom') {
+        // Convert GB to bytes
+        $trafficLimitBytes = (int)((float)$_POST['traffic_limit_gb'] * 1073741824);
+    }
     
     if (empty($clientName)) {
         redirect('/servers/' . $serverId . '?error=Client+name+is+required');
@@ -418,10 +435,9 @@ Router::post('/servers/{id}/clients/create', function ($params) {
         $clientId = VpnClient::create($serverId, $user['id'], $clientName, $expiresInDays);
         
         // Set traffic limit if specified
-        if ($trafficLimitGb !== null) {
+        if ($trafficLimitBytes !== null && $trafficLimitBytes > 0) {
             $client = new VpnClient($clientId);
-            $limitBytes = (int)($trafficLimitGb * 1073741824); // Convert GB to bytes
-            $client->setTrafficLimit($limitBytes);
+            $client->setTrafficLimit($trafficLimitBytes);
         }
         
         redirect('/clients/' . $clientId);

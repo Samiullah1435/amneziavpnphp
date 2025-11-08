@@ -18,7 +18,7 @@
         <input name="name" placeholder="{{ t('clients.name') }}" required class="w-full px-3 py-2 border rounded" id="clientName">
         <div>
           <label class="block text-sm text-gray-600 mb-1">{{ t('clients.expiration') }}</label>
-          <select name="expires_in_days" class="w-full px-3 py-2 border rounded">
+          <select name="expires_in_days" class="w-full px-3 py-2 border rounded mb-2" id="expirationSelect" onchange="toggleExpirationInput()">
             <option value="" selected>{{ t('clients.never_expires') }}</option>
             <option value="7">7 {{ t('common.days') }}</option>
             <option value="30">30 {{ t('common.days') }}</option>
@@ -26,11 +26,13 @@
             <option value="90">90 {{ t('common.days') }}</option>
             <option value="180">180 {{ t('common.days') }}</option>
             <option value="365">365 {{ t('common.days') }}</option>
+            <option value="custom">{{ t('clients.custom_seconds') }}</option>
           </select>
+          <input type="number" name="expires_in_seconds" id="expirationSeconds" class="w-full px-3 py-2 border rounded" placeholder="{{ t('clients.enter_seconds') }}" style="display:none;" min="1">
         </div>
         <div>
           <label class="block text-sm text-gray-600 mb-1">{{ t('clients.traffic_limit') }}</label>
-          <select name="traffic_limit_gb" class="w-full px-3 py-2 border rounded">
+          <select name="traffic_limit_gb" class="w-full px-3 py-2 border rounded mb-2" id="trafficSelect" onchange="toggleTrafficInput()">
             <option value="" selected>{{ t('clients.unlimited') }}</option>
             <option value="1">1 GB</option>
             <option value="5">5 GB</option>
@@ -41,7 +43,9 @@
             <option value="250">250 GB</option>
             <option value="500">500 GB</option>
             <option value="1000">1000 GB (1 TB)</option>
+            <option value="custom">{{ t('clients.custom_mb') }}</option>
           </select>
+          <input type="number" name="traffic_limit_mb" id="trafficMegabytes" class="w-full px-3 py-2 border rounded" placeholder="{{ t('clients.enter_megabytes') }}" style="display:none;" min="1">
         </div>
         <button type="submit" class="gradient-bg text-white px-4 py-2 rounded w-full" id="createClientBtn">
           <span id="createClientText">{{ t('form.create') }}</span>
@@ -182,6 +186,34 @@
 </div>
 
 <script>
+function toggleExpirationInput() {
+  const select = document.getElementById('expirationSelect');
+  const input = document.getElementById('expirationSeconds');
+  if (select.value === 'custom') {
+    input.style.display = 'block';
+    input.required = true;
+    input.focus();
+  } else {
+    input.style.display = 'none';
+    input.required = false;
+    input.value = '';
+  }
+}
+
+function toggleTrafficInput() {
+  const select = document.getElementById('trafficSelect');
+  const input = document.getElementById('trafficMegabytes');
+  if (select.value === 'custom') {
+    input.style.display = 'block';
+    input.required = true;
+    input.focus();
+  } else {
+    input.style.display = 'none';
+    input.required = false;
+    input.value = '';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('createClientForm');
   if (form) {
