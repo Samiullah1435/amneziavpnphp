@@ -80,7 +80,7 @@ class Translator {
      */
     private static function loadTranslations(string $languageCode): void {
         $pdo = DB::conn();
-        $stmt = $pdo->prepare('SELECT translation_key, translation_value FROM translations WHERE language_code = ?');
+        $stmt = $pdo->prepare('SELECT CONCAT(category, ".", key_name) as trans_key, translation FROM translations WHERE locale = ?');
         $stmt->execute([$languageCode]);
         
         $translations = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -178,13 +178,18 @@ class Translator {
             
             // Save to database
             $pdo = DB::conn();
+            // Split key into category and key_name (e.g., "common.speed" -> "common" + "speed")
+            $parts = explode('.', $key, 2);
+            $category = $parts[0] ?? 'common';
+            $keyName = $parts[1] ?? $key;
+            
             $stmt = $pdo->prepare('
-                INSERT INTO translations (language_code, translation_key, translation_value)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE translation_value = VALUES(translation_value)
+                INSERT INTO translations (locale, category, key_name, translation)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE translation = VALUES(translation)
             ');
             
-            return $stmt->execute([$targetLang, $key, $translatedText]);
+            return $stmt->execute([$targetLang, $category, $keyName, $translatedText]);
             
         } catch (Exception $e) {
             error_log("Auto-translation error: " . $e->getMessage());
@@ -307,11 +312,11 @@ class Translator {
         $pdo = DB::conn();
         
         // Get all English keys
-        $stmt = $pdo->query("SELECT translation_key, translation_value FROM translations WHERE language_code = 'en'");
+        $stmt = $pdo->query("SELECT CONCAT(category, '.', key_name) as trans_key, translation FROM translations WHERE locale = 'en'");
         $englishKeys = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
         
         // Get existing translations for target language
-        $stmt = $pdo->prepare("SELECT translation_key FROM translations WHERE language_code = ?");
+        $stmt = $pdo->prepare("SELECT CONCAT(category, '.', key_name) FROM translations WHERE locale = ?");
         $stmt->execute([$targetLang]);
         $existingKeys = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
@@ -514,9 +519,9 @@ class Translator {
                 l.name,
                 l.native_name,
                 COUNT(t.id) as translated_count,
-                (SELECT COUNT(*) FROM translations WHERE language_code = 'en') as total_count
+                (SELECT COUNT(*) FROM translations WHERE locale = 'en') as total_count
             FROM languages l
-            LEFT JOIN translations t ON l.code = t.language_code
+            LEFT JOIN translations t ON l.code = t.locale
             WHERE l.is_active = 1
             GROUP BY l.code, l.name, l.native_name
         ");
@@ -529,13 +534,18 @@ class Translator {
      */
     public static function setTranslation(string $languageCode, string $key, string $value): bool {
         $pdo = DB::conn();
+        // Split key into category and key_name
+        $parts = explode('.', $key, 2);
+        $category = $parts[0] ?? 'common';
+        $keyName = $parts[1] ?? $key;
+        
         $stmt = $pdo->prepare('
-            INSERT INTO translations (language_code, translation_key, translation_value)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE translation_value = VALUES(translation_value)
+            INSERT INTO translations (locale, category, key_name, translation)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE translation = VALUES(translation)
         ');
         
-        return $stmt->execute([$languageCode, $key, $value]);
+        return $stmt->execute([$languageCode, $category, $keyName, $value]);
     }
     
     /**
@@ -543,7 +553,7 @@ class Translator {
      */
     public static function exportToJson(string $languageCode): string {
         $pdo = DB::conn();
-        $stmt = $pdo->prepare('SELECT translation_key, translation_value FROM translations WHERE language_code = ?');
+        $stmt = $pdo->prepare('SELECT CONCAT(category, ".", key_name) as trans_key, translation FROM translations WHERE locale = ?');
         $stmt->execute([$languageCode]);
         
         $translations = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
