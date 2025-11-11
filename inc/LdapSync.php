@@ -25,8 +25,22 @@ class LdapSync
     private function loadConfig(): void
     {
         $db = DB::conn();
-        $stmt = $db->query("SELECT * FROM ldap_configs WHERE id = 1");
-        $this->config = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        
+        // Check if ldap_configs table exists
+        try {
+            $stmt = $db->query("SHOW TABLES LIKE 'ldap_configs'");
+            if (!$stmt->fetch()) {
+                // Table doesn't exist yet - use empty config
+                $this->config = [];
+                return;
+            }
+            
+            $stmt = $db->query("SELECT * FROM ldap_configs WHERE id = 1");
+            $this->config = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        } catch (PDOException $e) {
+            // If any error occurs, use empty config
+            $this->config = [];
+        }
     }
     
     /**
